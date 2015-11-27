@@ -25,10 +25,6 @@ typedef long long lld;
  The k-means Clustering algorithm aims to partition a set of observed points in a
  multi-dimensional space into k subsets (clusters). 
  
- It does so by selecting k points in this space to serve as "means", and assigning 
- each observation into the cluster corresponding to the mean which is closest to it. 
- The means are then updated and the procedure is iterated until convergence is achieved.
- 
  In general, finding the optimal means is an NP-hard problem, and therefore a heuristic
  approach (Lloyd's Algorithm) is performed; initially, k means are selected at random,
  and then each observation is assigned into the cluster corresponding to the mean which 
