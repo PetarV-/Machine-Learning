@@ -234,7 +234,7 @@ public:
                  The entries are scaled at each t using the given scaling coefficients.
      Complexity: O(T * n^2) time, O(T * n) memory
     */
-    double** backward(std::vector<int> &y, double *c)
+    double** backward(vector<int> &y, double *c)
     {
         int len = y.size();
         
@@ -273,7 +273,7 @@ public:
      Output:     The most likely state sequence that produces this sequence
      Complexity: O(T * n^2) time, O(T * n) memory
     */
-    vector<int> viterbi(std::vector<int> &y)
+    vector<int> viterbi(vector<int> &y)
     {
         int len = y.size();
         
@@ -350,7 +350,7 @@ public:
      Output:     A reevaluation of the model's parameters, such that it is more likely to produce Y.
      Complexity: O(T * (n^2 + nm)) time (per iteration), O(T * n) memory
     */
-    void baumwelch(vector<int> y, int iterations, double tolerance)
+    void baumwelch(vector<int> &y, int iterations, double tolerance)
     {
         int len = y.size();
         
