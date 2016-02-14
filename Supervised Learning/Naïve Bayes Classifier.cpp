@@ -124,11 +124,11 @@ inline string classify(string text)
             // ...times the individual word likelihoods...
             if (c.words.count(word))
             {
-                curr_val += cnt * (log(c.words[word]) - log(c.total_words));
+                curr_val += cnt * (log(c.words[word]) - log(lapl_total_words));
             }
             else
             {
-                curr_val += cnt * (-log(c.total_words));
+                curr_val += cnt * (-log(lapl_total_words));
             }
         }
         
