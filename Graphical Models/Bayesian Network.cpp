@@ -299,10 +299,12 @@ struct bayes_net
     // assuming the evidence (known assignments) E
     // It uses the Variable Elimination optimisation to the Enumeration-Ask algorithm.
     // N.B. it is assumed that Q and E are disjoint! Otherwise, routine might break.
-    unordered_map<int, table> query(unordered_set<int> Q, unordered_map<int, int> E)
+    table query(unordered_set<int> Q, unordered_map<int, int> E)
     {
         vector<int> outdeg(nodes.size());
         vector<table> tables(nodes.size());
+        
+        table ret;
         
         for (int i=0;i<nodes.size();i++)
         {
@@ -322,8 +324,6 @@ struct bayes_net
         {
             int it = q.front();
             q.pop();
-            
-            if (E.count(it)) continue;
             
             // Apologies... also very inefficient!
             // I first construct the entire factor (cloning the table)
@@ -346,18 +346,10 @@ struct bayes_net
                 }
             }
             
-            for (int i=0;i<nodes[it].chd.size();i++)
-            {
-                if (!E.count(nodes[it].chd[i]))
-                {
-                    tables[it].multiply(tables[nodes[it].chd[i]]);
-                }
-            }
+            if (ret.inputs.empty()) ret = tables[it];
+            else ret.multiply(tables[it]);
             
-            if (!Q.count(it)) tables[it].sum_out(it);
-            
-            printf("\nTable for %d is\n", it);
-            tables[it].print();
+            if (!Q.count(it) && !E.count(it)) ret.sum_out(it);
             
             for (int i=0;i<nodes[it].p.size();i++)
             {
@@ -366,12 +358,6 @@ struct bayes_net
                     q.push(nodes[it].p[i]);
                 }
             }
-        }
-        
-        unordered_map<int, table> ret;
-        for (int q : Q)
-        {
-            ret[q] = tables[q];
         }
         
         return ret;
@@ -450,7 +436,7 @@ int main()
     printf("ID(lodge1) = %d\n", lodge1);
     printf("ID(lodge2) = %d\n", lodge2);
     
-    bn.query(Q, E);
+    bn.query(Q, E).print();
     
     return 0;
 }
