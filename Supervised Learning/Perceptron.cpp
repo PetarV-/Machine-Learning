@@ -17,12 +17,14 @@
 #include <set>
 #include <map>
 #include <complex>
+#include <functional>
 
 #define EPS 1e-6 // convergence criterion
 #define ETA 1e-3 // learning rate
 
 using namespace std;
 typedef long long lld;
+typedef function<double(vector<double>, vector<double>)> func; // the common type of functions
 
 /*
  The perceptron is the simplest neural network---one that contains only a single neuron.
@@ -55,27 +57,29 @@ typedef long long lld;
  combining many perceptrons together in some form is required.
 */
 
+// Helper function to compute the dot product of two vectors
+double scalar_product(vector<double> a, vector<double> b)
+{
+    assert(a.size() == b.size());
+    double ret = 0.0;
+    for (int i=0;i<a.size();i++)
+    {
+        ret += a[i] * b[i];
+    }
+    return ret;
+}
+
 class Perceptron
 {
 private:
     int n;
     vector<double> w;
-    
-    // Helper function to compute the dot product of two vectors
-    double scalar_product(vector<double> a, vector<double> b)
-    {
-        assert(a.size() == b.size());
-        double ret = 0.0;
-        for (int i=0;i<a.size();i++)
-        {
-            ret += a[i] * b[i];
-        }
-        return ret;
-    }
+    function<double(vector<double>, vector<double>)> h; // the output function of the perceptron
+    function<double(vector<double>, vector<double>)> d; // the derivative of the output function
     
 public:
     // Initialises a perceptron that accepts n (+1) inputs
-    Perceptron(int n) : n(n)
+    Perceptron(int n, func h, func d) : n(n), h(h), d(d)
     {
         w = vector<double>(n + 1);
         // Initialise each weight to a random value between 0 and 1
@@ -86,11 +90,9 @@ public:
     }
     
     // Computes the output of the perceptron on a given input
-    // Here the logistic function is used
     double val(vector<double> x)
     {
-        x.push_back(1.0);
-        return 1.0 / (1.0 + exp(-scalar_product(w, x)));
+        return h(w, x);
     }
     
     // Trains the perceptron on a given training set by gradient descent
@@ -104,10 +106,9 @@ public:
             diff = 0.0;
             for (int i=0;i<x.size();i++)
             {
-                double lst = val(x[i]);
                 for (int j=0;j<=n;j++)
                 {
-                    double curr = ETA * (y[i] - lst) * lst * (1.0 - lst) * x[i][j];
+                    double curr = ETA * (y[i] - h(w, x[i])) * d(w, x[i]) * x[i][j];
                     diff += curr * curr;
                     w[j] += curr;
                 }
@@ -121,6 +122,18 @@ int main()
     srand(time(NULL));
     
     int t = 1000;
+    
+    // Here the logistic function will be used for the perceptron
+    auto logistic = [] (vector<double> w, vector<double> x) -> double
+    {
+        x.push_back(1.0);
+        return 1.0 / (1.0 + exp(-scalar_product(w, x)));
+    };
+    auto d_logistic = [logistic] (vector<double> w, vector<double> x) -> double
+    {
+        double lst = logistic(w, x);
+        return lst * (1.0 - lst);
+    };
     
     // Trains the perceptron to classify (x, y) pairs based on whether x > y
     vector<vector<double> > trn;
@@ -137,7 +150,7 @@ int main()
         else vals.push_back(0);
     }
     
-    Perceptron p(2);
+    Perceptron p(2, logistic, d_logistic);
     p.train(trn, vals);
     
     int correct = 0;
