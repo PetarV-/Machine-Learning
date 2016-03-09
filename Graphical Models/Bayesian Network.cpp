@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <sstream>
+#include <random>
 
 using namespace std;
 typedef long long lld;
@@ -30,12 +31,12 @@ typedef long long lld;
  conditionally independent of its nondescendants given its parents. Therefore the
  full joint distribution can be expressed as
  
-     P(N1, N2, ..., Nn) = prod_{i = 1}^{n} P(Ni | parents(Ni))
+ P(N1, N2, ..., Nn) = prod_{i = 1}^{n} P(Ni | parents(Ni))
  
  This has the benefit of improved storage and time complexities compared to naïvely
  computing the full joint distribution.
  
- The BN implemented here supports only discrete RVs, however extending the nodes to 
+ The BN implemented here supports only discrete RVs, however extending the nodes to
  handle continuous RVs is possible; one just has to choose a known distribution that
  can be easily parametrised, that is "close enough" to the desired RV.
  
@@ -46,6 +47,7 @@ typedef long long lld;
  
  The complexity of the inference algorithm is linear for "well-behaved" BN architectures,
  and in the worst case it is #P-Hard, when one usually has to resort to approximate inference.
+ A particular approximate inference algorithm using Gibbs sampling has been implemented.
 */
 
 struct table
@@ -278,6 +280,27 @@ struct bayes_net
         return ret;
     }
     
+    // Gets the value of the cond. distribution table for node ID
+    // with given parents' output values.
+    vector<double> get_values(int id, vector<int> &parent_vals)
+    {
+        assert(nodes[id].p.size() == parent_vals.size());
+        vector<double> ret(nodes[id].out_card);
+        int ind = 0;
+        int mul = 1;
+        for (int i=0;i<nodes[id].p.size();i++)
+        {
+            assert(parent_vals[i] >= 0 && parent_vals[i] < nodes[nodes[id].p[i]].out_card);
+            ind += parent_vals[i] * mul;
+            mul *= nodes[nodes[id].p[i]].out_card;
+        }
+        for (int i=0;i<nodes[id].out_card;i++)
+        {
+            ret[i] = nodes[id].cd[ind + i * mul];
+        }
+        return ret;
+    }
+    
     // Sets the value of the cond. distribution table for node ID
     // with given parents' output values and own output value.
     void set_value(int id, vector<int> &parent_vals, int own_val, double value)
@@ -362,6 +385,86 @@ struct bayes_net
         
         return ret;
     }
+    
+    // Performs approximate inference (using Gibbs sampling)
+    // on the query variables Q assuming evidence E.
+    // Once again, need Q and E to be disjoint!
+    table gibbs(unordered_set<int> Q, unordered_map<int, int> E, int steps)
+    {
+        default_random_engine gen;
+        uniform_real_distribution<double> U(0.0, 1.0);
+        
+        vector<vector<int> > sampled;
+        vector<int> curr(nodes.size());
+        
+        for (int i=0;i<nodes.size();i++)
+        {
+            // initially sample uniformly at random
+            uniform_int_distribution<int> I(0, nodes[i].out_card - 1);
+            if (!E.count(i)) curr[i] = I(gen);
+            else curr[i] = E[i];
+        }
+        
+        sampled.push_back(curr);
+        
+        while (steps--)
+        {
+            for (int i=0;i<nodes.size();i++)
+            {
+                if (!E.count(i))
+                {
+                    // Sample each node in order, using the already sampled values for this step!
+                    double p = U(gen);
+                    int new_out = 0;
+                    double sum = 0.0;
+                    vector<int> p_vals(nodes[i].p.size());
+                    for (int j=0;j<nodes[i].p.size();j++)
+                    {
+                        p_vals[j] = curr[nodes[i].p[j]];
+                    }
+                    
+                    vector<double> probs = get_values(i, p_vals);
+                    while (new_out < nodes[i].out_card)
+                    {
+                        if (p < (sum += probs[new_out])) break;
+                        new_out++;
+                    }
+                    
+                    curr[i] = new_out;
+                }
+            }
+            sampled.push_back(curr);
+        }
+        
+        table ret;
+        vector<int> Qs(Q.size());
+        vector<int> Qcards(Q.size());
+        int n_q = 0; int tot_size = 1;
+        for (int i=0;i<nodes.size();i++)
+        {
+            if (Q.count(i))
+            {
+                Qs[n_q] = i;
+                Qcards[n_q++] = nodes[i].out_card;
+                tot_size *= nodes[i].out_card;
+            }
+        }
+        ret.inputs = Qs;
+        ret.cards = Qcards;
+        ret.tbl = vector<double>(tot_size, 0.0);
+        for (int i=0;i<sampled.size();i++)
+        {
+            vector<int> vals(Qs.size());
+            for (int j=0;j<Qs.size();j++)
+            {
+                vals[j] = sampled[i][Qs[j]];
+            }
+            double old_val = ret.tbl[ret.encode(vals, Qcards)];
+            ret.set_value(vals, old_val + 1.0 / sampled.size());
+        }
+        
+        return ret;
+    }
 };
 
 
@@ -437,6 +540,7 @@ int main()
     printf("ID(lodge2) = %d\n", lodge2);
     
     bn.query(Q, E).print();
+    bn.gibbs(Q, E, 100).print();
     
     return 0;
 }
