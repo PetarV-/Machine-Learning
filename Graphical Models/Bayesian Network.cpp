@@ -31,7 +31,7 @@ typedef long long lld;
  conditionally independent of its nondescendants given its parents. Therefore the
  full joint distribution can be expressed as
  
- P(N1, N2, ..., Nn) = prod_{i = 1}^{n} P(Ni | parents(Ni))
+    P(N1, N2, ..., Nn) = prod_{i = 1}^{n} P(Ni | parents(Ni))
  
  This has the benefit of improved storage and time complexities compared to naïvely
  computing the full joint distribution.
